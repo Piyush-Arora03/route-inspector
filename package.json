@@ -1,19 +1,41 @@
 {
   "name": "route-inspector",
   "version": "1.0.0",
+  "description": "A powerful static analysis tool for Express.js applications.",
   "main": "src/index.js",
+  "files": [
+    "src"
+  ],
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Piyush-Arora03/route-inspector.git"
+  },
+  "keywords": [
+    "express",
+    "routes",
+    "analyzer",
+    "parser",
+    "static-analysis",
+    "middleware",
+    "documentation"
+  ],
+  "author": "Piyush Arora <piyusharora814@gmail.com>",
   "license": "ISC",
-  "description": "",
+  "bugs": {
+    "url": "https://github.com/Piyush-Arora03/route-inspector/issues"
+  },
+  "homepage": "https://github.com/Piyush-Arora03/route-inspector#readme",
+  "engines": {
+    "node": ">=16.0.0"
+  },
   "dependencies": {
     "@babel/core": "^7.28.0",
     "@babel/parser": "^7.28.0",
     "@babel/traverse": "^7.28.0",
-    "chalk": "^5.4.1",
-    "glob": "^11.0.3"
+    "chalk": "^4.1.2",
+    "glob": "^10.4.2"
   }
 }

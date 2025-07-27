@@ -1,6 +1,6 @@
 # Route Inspector
 
-[![Node.js CI](https://github.com/your-username/route-inspector/workflows/Node.js%20CI/badge.svg)](https://github.com/your-username/route-inspector/actions)
+[![Node.js CI](https://github.com/Piyush-Arora03/route-inspector/workflows/Node.js%20CI/badge.svg)](https://github.com/Piyush-Arora03/route-inspector/actions)
 [![npm version](https://img.shields.io/npm/v/route-inspector.svg)](https://www.npmjs.com/package/route-inspector)
 [![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/licenses/ISC)
 
@@ -70,20 +70,20 @@ The main function that analyzes your codebase and returns route information.
 
 #### Parameters
 
-*   `config` (Object):
-    *   `entry` (String): Path to your application directory.
-    *   `framework` (String): Framework to analyze (`'express'` currently supported).
-    *   `ignore` (Array): Optional list of glob patterns to ignore (default: `['**/node_modules/**']`).
+*   `config` (Object): An object with the following properties:
+    *   **`entry`** (String): Path to your application directory. *Default: `.`*
+    *   **`framework`** (String): Framework to analyze. *Default: `'express'`*
+    *   **`ignore`** (Array): Optional list of glob patterns to ignore. *Default: `['**/node_modules/**']`*
 
 #### Returns
 
 An `Array` of route objects with the following properties:
 
-*   `method`: HTTP method (e.g., `GET`, `POST`).
-*   `path`: Complete route path.
-*   `middleware`: An array of middleware/handler identifiers.
-*   `file`: The absolute path to the source file.
-*   `line`: The line number in the source file.
+*   **`method`**: HTTP method (e.g., `GET`, `POST`).
+*   **`path`**: Complete route path.
+*   **`middleware`**: An array of middleware/handler identifiers.
+*   **`file`**: The absolute path to the source file.
+*   **`line`**: The line number in the source file.
 
 ## Advanced Usage
 

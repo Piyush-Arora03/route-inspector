@@ -4,10 +4,14 @@ const glob = require('glob');
 const { parseFile } = require('./parser');
 
 function parseCodebase(config = {}) {
-  const { entry = '.', framework = 'express' } = config;
+  const {
+    entry = '.',
+    framework = 'express',
+    ignore = ['**/node_modules/**']
+  } = config;
   const files = glob.sync(`${entry}/**/*.@(js|ts|jsx|tsx)`, { 
     absolute: true,
-    ignore: ['**/node_modules/**']
+    ignore: ignore
   });
   
   const routes = [];
