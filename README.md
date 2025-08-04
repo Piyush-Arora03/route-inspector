@@ -19,10 +19,11 @@ $ npx route-inspector . --html report.html
 
 ## Key Features
 
-- 🔍 **Automatic Route Discovery**: Finds all routes in your Express app.
-- 📍 **Source Tracking**: Shows the exact file and line number for route definitions.
+- 🔍 **Automatic Route Discovery**: Finds all routes and middleware in your Express app.
+- 🗺️ **Interactive HTML Reports**: Generates a searchable and sortable HTML report.
+- 📍 **Source Code Linking**: Shows the exact file and line number for each route definition.
 - 🛡️ **Security Auditing**: Highlights routes that may be missing authentication middleware.
-- ⚙️ **Framework Support**: Currently supports Express.js, with plans to be extensible.
+- ⚙️ **Framework Support**: Built for Express.js, with an extensible architecture.
 
 ## Installation
 
@@ -32,135 +33,89 @@ For the best experience, install the CLI tool globally:
 npm install -g route-inspector
 ```
 
+Alternatively, you can use it directly without installation via `npx`.
+
 ## Usage
 
-### Basic Example
+The easiest way to use Route Inspector is from the command line.
+
+### Command-Line Interface (CLI)
+
+#### **Generate an HTML Report**
+
+This is the recommended way to use Route Inspector. The interactive HTML report provides a searchable and sortable table of all your routes.
+
+```bash
+route-inspector /path/to/your-app --html report.html
+```
+
+If you are already inside your project directory, you can just use `.` as the path:
+
+```bash
+route-inspector . --html report.html
+```
+
+#### **Get JSON Output**
+
+To get the raw route data as a JSON array printed to the console, simply run the tool without the `--html` flag. This is useful for piping the output to other tools like `jq`.
+
+```bash
+route-inspector /path/to/your-app
+```
+
+#### **CLI Options**
+
+-   `[entry]`: The path to the codebase you want to analyze. Defaults to the current directory (`.`).
+-   `--html`, `-o`: The file path where the HTML report should be saved.
+
+---
+
+### Advanced: Programmatic API
+
+For more complex integrations, you can use Route Inspector programmatically within your own scripts.
+
+#### `parseCodebase(config)`
+
+The `parseCodebase` function is the core of the tool. It accepts a configuration object and returns an array of route objects.
 
 ```javascript
 const { parseCodebase } = require('route-inspector');
 
 const routes = parseCodebase({
   entry: './src',        // Path to your application
-  framework: 'express'   // Currently supports Express.js
+  framework: 'express',  // Currently supports Express.js
 });
 
-console.log('Discovered Routes:');
 console.log(routes);
 ```
 
-### Sample Output
+**Configuration:**
 
-```json
-[
-  {
-    "method": "GET",
-    "path": "/api/users",
-    "middleware": ["auth", "adminOnly"],
-    "file": "/src/routes/users.js",
-    "line": 15
-  },
-  {
-    "method": "POST",
-    "path": "/api/login",
-    "middleware": ["<function>"],
-    "file": "/src/routes/auth.js",
-    "line": 8
-  }
-]
-```
+-   `entry` (String): Path to the application directory. **Default**: `.`
+-   `framework` (String): The framework to analyze. **Default**: `'express'`
+-   `ignore` (Array): An optional list of glob patterns to ignore files.
+-   `html` (String): If provided, generates an HTML report at the specified file path.
 
-## API Documentation
+#### **Example: Find Unprotected Routes**
 
-### `parseCodebase(config)`
-
-The main function that analyzes your codebase and returns route information.
-
-#### Parameters
-
-*   `config` (Object): An object with the following properties:
-    *   **`entry`** (String): Path to your application directory. *Default: `.`*
-    *   **`framework`** (String): Framework to analyze. *Default: `'express'`*
-    *   **`ignore`** (Array): Optional list of glob patterns to ignore. *Default: `['**/node_modules/**']`*
-
-#### Returns
-
-An `Array` of route objects with the following properties:
-
-*   **`method`**: HTTP method (e.g., `GET`, `POST`).
-*   **`path`**: Complete route path.
-*   **`middleware`**: An array of middleware/handler identifiers.
-*   **`file`**: The absolute path to the source file.
-*   **`line`**: The line number in the source file.
-
-## Advanced Usage
-
-### Analyze Specific Files
+You can use the programmatic API to build custom security checks.
 
 ```javascript
-const routes = parseCodebase({
-  entry: './src/routes', // Analyze only the routes directory
-  framework: 'express'
-});
-```
+const routes = parseCodebase({ entry: './app' });
 
-### Identify Potentially Unprotected Routes
-
-```javascript
-const routes = parseCodebase({ entry: './app', framework: 'express' });
-
-const unprotectedRoutes = routes.filter(route => 
-  !route.middleware.some(mw => 
+const unprotectedRoutes = routes.filter(route =>
+  !route.middleware.some(mw =>
     mw.includes('auth') || mw.includes('authenticate')
   )
 );
 
-console.log('Unprotected routes:');
+console.log('Potentially Unprotected Routes:');
 console.log(unprotectedRoutes);
 ```
 
-### Generate Route Documentation
-
-```javascript
-const fs = require('fs');
-const routes = parseCodebase({ entry: '.', framework: 'express' });
-
-const markdown = routes.map(route => 
-  `### ${route.method} ${route.path}\n` +
-  `- **File**: ${route.file}:${route.line}\n` +
-  `- **Middleware**: ${route.middleware.join(', ')}\n`
-).join('\n');
-
-fs.writeFileSync('ROUTES.md', '# API Routes\n\n' + markdown);
-```
-
-## Use Cases
-
-*   **Automated API Documentation**: Generate always-up-to-date route documentation.
-*   **Security Auditing**: Quickly identify potentially unprotected routes.
-*   **Codebase Analysis**: Understand complex route structures and middleware chains.
-*   **Migration Assistance**: Map out routes before converting an Express app to another framework.
-*   **Testing**: Verify route coverage in tests.
-*   **Performance Optimization**: Identify route-specific middleware bottlenecks.
-
 ## How It Works
 
-Route Inspector uses the Babel parser to perform static analysis on your codebase. It:
-
-1.  Identifies Express `app` and `router` instances.
-2.  Finds all route definitions (e.g., `app.get`, `app.post`, `router.use`).
-3.  Tracks middleware functions and their names.
-4.  Resolves mounted router paths to build the full route URL.
-5.  Maps all routes back to their source file and line number.
-
-## Contributing
-
-Contributions are welcome! Here's how to get started:
-
-1.  Fork the repository.
-2.  Install dependencies: `npm install`
-3.  Make your changes.
-4.  Run tests: `npm test`
-5.  Submit a pull request.
+Route Inspector uses the **Babel parser** to perform static analysis on your codebase. It identifies Express `app` and `router` instances, finds all route definitions (e.g., `app.get`), tracks middleware, resolves mounted router paths, and maps all routes back to their source file and line number.
 
 ## Roadmap
 
@@ -168,14 +123,13 @@ Contributions are welcome! Here's how to get started:
 - [x] Command-Line Interface (CLI) version
 - [ ] Koa.js support
 - [ ] Fastify support
-- [ ] Role-based access control (RBAC) analysis
 - [ ] Route visualization (graphical output)
 - [ ] Swagger/OpenAPI specification generation
 
+## Contributing
+
+Contributions are welcome! Please fork the repository, make your changes, and submit a pull request.
+
 ## License
 
-This project is licensed under the ISC License - see the `LICENSE` file for details.
-
----
-
-*Route Inspector was created to solve the common problem of undocumented, hard-to-track routes in large Express.js applications. By automatically analyzing your codebase, it helps you maintain a clean, well-documented, and secure API.*
+This project is licensed under the [ISC License](LICENSE).
