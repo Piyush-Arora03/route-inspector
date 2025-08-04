@@ -1,4 +1,5 @@
 node_modules/
-report/
+reports/
 app/
 example.js
+inspector.config.js

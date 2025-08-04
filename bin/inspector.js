@@ -2,8 +2,11 @@
 
 const yargs = require('yargs/yargs');
 const { hideBin } = require('yargs/helpers');
-const { parseCodebase } = require('../src/index'); // Adjust path to go up one level to src/
+const { cosmiconfig } = require('cosmiconfig');
+const { parseCodebase } = require('../src/index');
 const path = require('path');
+
+const explorer = cosmiconfig('inspector');
 
 console.log('--- Route Inspector CLI ---');
 
@@ -14,30 +17,50 @@ yargs(hideBin(process.argv))
     (yargs) => {
       return yargs.positional('entry', {
         describe: 'The entry path to your codebase',
-        default: '.'
       });
     },
-    (argv) => {
-      console.log(`🔍 Starting analysis of "${path.resolve(argv.entry)}"...`);
+    async (argv) => {
+      try {
+        const result = await explorer.search();
+        const configFileOptions = result ? result.config : {};
 
-      const config = {
-        entry: argv.entry,
-        html: argv.html // Pass the html option if it exists
-      };
-      
-      const routes = parseCodebase(config);
+        // Merge config file options with command-line arguments.
+        // Command-line arguments take precedence.
+        const config = {
+          entry: argv.entry || configFileOptions.entry || '.',
+          html: argv.html || configFileOptions.html,
+          ignore: argv.ignore || configFileOptions.ignore,
+          // *** THE FIX IS HERE: Use the framework from the CLI or config file ***
+          framework: argv.framework || configFileOptions.framework || 'express',
+        };
 
-      if (!argv.html) {
-        // If not generating an HTML report, print to console
-        console.log(JSON.stringify(routes, null, 2));
+        console.log(`🔍 Starting analysis of "${path.resolve(config.entry)}" using the "${config.framework}" parser...`);
+        
+        const routes = parseCodebase(config);
+
+        if (!config.html) {
+          console.log(JSON.stringify(routes, null, 2));
+        }
+
+        console.log(`✨ Analysis complete. Found ${routes.length} routes.`);
+      } catch (error) {
+        console.error(`An error occurred: ${error.message}`);
       }
-
-      console.log(`✨ Analysis complete. Found ${routes.length} routes.`);
     }
   )
+  // *** ADDED A NEW OPTION FOR FRAMEWORK ***
+  .option('framework', {
+    type: 'string',
+    description: 'The framework to analyze (express, koa, or fastify)',
+    default: 'express' // Default to express if not specified
+  })
   .option('html', {
     alias: 'o',
     type: 'string',
-    description: 'Generate an HTML report at the specified path (e.g., report.html)'
+    description: 'Generate an HTML report at the specified path'
+  })
+  .option('ignore', {
+    type: 'array',
+    description: 'A list of glob patterns to ignore'
   })
   .parse();
