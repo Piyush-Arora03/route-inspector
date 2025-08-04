@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Route Inspector Report</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; background-color: #f8f9fa; color: #333; }
+        header { background-color: #343a40; color: white; padding: 2rem; text-align: center; }
+        header h1 { margin: 0; font-size: 2.5rem; }
+        header p { margin-top: 0.5rem; font-size: 1.1rem; color: #adb5bd; }
+        .container { padding: 2rem; max-width: 1200px; margin: auto; }
+        #search-box { width: 100%; padding: 0.75rem; font-size: 1rem; border-radius: 6px; border: 1px solid #ced4da; margin-bottom: 2rem; box-sizing: border-box; }
+        table { width: 100%; border-collapse: collapse; background-color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        th, td { padding: 1rem; text-align: left; border-bottom: 1px solid #dee2e6; }
+        th { background-color: #f1f3f5; }
+        .method { font-weight: bold; padding: 0.25em 0.6em; border-radius: 4px; color: white; font-family: monospace; font-size: 0.9em; }
+        .method-GET { background-color: #28a745; }
+        .method-POST { background-color: #007bff; }
+        .method-PUT { background-color: #ffc107; color: #333; }
+        .method-DELETE { background-color: #dc3545; }
+        .method-PATCH { background-color: #fd7e14; }
+        .method-USE, .method-ALL { background-color: #6c757d; }
+        .file-path { font-family: monospace; font-size: 0.9em; color: #666; }
+        .middleware-tag { background-color: #e9ecef; color: #495057; padding: 0.25em 0.5em; border-radius: 4px; font-family: monospace; font-size: 0.85em; display: inline-block; margin: 2px; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Route Inspector Report</h1>
+        <p>An automatically generated overview of all API routes.</p>
+    </header>
+    <div class="container">
+        <input type="text" id="search-box" placeholder="Search routes by path, method, or middleware...">
+        <table>
+            <thead>
+                <tr>
+                    <th>Method</th>
+                    <th>Path</th>
+                    <th>Middleware</th>
+                    <th>File</th>
+                </tr>
+            </thead>
+            <tbody id="routes-table-body">
+                <% routes.forEach(route => { %>
+                    <tr class="route-row">
+                        <td><span class="method method-<%= route.method %>"><%= route.method %></span></td>
+                        <td class="path-cell"><%= route.path %></td>
+                        <td class="middleware-cell">
+                            <% route.middleware.forEach(mw => { %>
+                                <span class="middleware-tag"><%= mw %></span>
+                            <% }); %>
+                        </td>
+                        <td class="file-path"><%= route.file %>:<%= route.line %></td>
+                    </tr>
+                <% }); %>
+            </tbody>
+        </table>
+    </div>
+    <script>
+        const searchBox = document.getElementById('search-box');
+        const tableBody = document.getElementById('routes-table-body');
+        const rows = tableBody.getElementsByClassName('route-row');
+        searchBox.addEventListener('keyup', () => {
+            const searchTerm = searchBox.value.toLowerCase();
+            for (const row of rows) {
+                const rowText = row.textContent.toLowerCase();
+                if (rowText.includes(searchTerm)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            }
+        });
+    </script>
+</body>
+</html>

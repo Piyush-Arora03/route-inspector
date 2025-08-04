@@ -4,25 +4,32 @@
 [![npm version](https://img.shields.io/npm/v/route-inspector.svg)](https://www.npmjs.com/package/route-inspector)
 [![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/licenses/ISC)
 
-> A powerful static analysis tool for Express.js applications.
+> A powerful static analysis tool for **Express.js** applications.
 
-Route Inspector automatically analyzes your codebase to extract detailed information about all routes, middleware, and handlers. It helps developers visualize and document their API structure, identify potential security issues, and maintain cleaner codebases without running the application.
+Route Inspector automatically analyzes your codebase to extract detailed information about all routes, middleware, and handlers. It helps you visualize your API structure, identify potential security issues, and maintain a clean codebase—all without running your application.
+
+```bash
+# Analyze your project and generate an interactive HTML report
+$ npx route-inspector . --html report.html
+
+🔍 Starting analysis of "/path/to/your-project"...
+✅ HTML report generated at: report.html
+✨ Analysis complete. Found 25 routes.
+```
 
 ## Key Features
 
 - 🔍 **Automatic Route Discovery**: Finds all routes in your Express app.
-- 📊 **Middleware Analysis**: Identifies authentication and authorization middleware.
-- 🗺️ **Route Mapping**: Generates complete route path maps with HTTP methods.
 - 📍 **Source Tracking**: Shows the exact file and line number for route definitions.
-- 🛡️ **Security Auditing**: Highlights routes that may be missing authentication.
+- 🛡️ **Security Auditing**: Highlights routes that may be missing authentication middleware.
 - ⚙️ **Framework Support**: Currently supports Express.js, with plans to be extensible.
 
 ## Installation
 
+For the best experience, install the CLI tool globally:
+
 ```bash
-npm install route-inspector
-# or
-yarn add route-inspector
+npm install -g route-inspector
 ```
 
 ## Usage
@@ -158,12 +165,12 @@ Contributions are welcome! Here's how to get started:
 ## Roadmap
 
 - [x] Express.js support
+- [x] Command-Line Interface (CLI) version
 - [ ] Koa.js support
 - [ ] Fastify support
 - [ ] Role-based access control (RBAC) analysis
 - [ ] Route visualization (graphical output)
 - [ ] Swagger/OpenAPI specification generation
-- [ ] Command-Line Interface (CLI) version
 
 ## License
 
