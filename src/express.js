@@ -1,106 +1,166 @@
+const path = require('path');
 const { getPathValue, getHandlerName } = require('./utils');
 
-function expressVisitor(filePath, routes, appRouters) {
-  const appIdentifiers = new Set();
-  const routerIdentifiers = new Map();
-  const mountedRouters = new Map();
+/**
+ * A Babel visitor that finds all require() statements in a file
+ * and populates a map of variable names to their resolved file paths.
+ */
+function createImportVisitor(filePath, analysisData) {
+    return {
+        VariableDeclarator(p) {
+            const { node } = p;
+            if (!node.init ||
+                node.init.type !== 'CallExpression' ||
+                node.init.callee.name !== 'require' ||
+                node.init.arguments.length === 0) {
+                return;
+            }
 
-  return {
-    VariableDeclarator(path) {
-      const { node } = path;
-      if (!node.init) return;
+            const sourcePath = getPathValue(node.init.arguments[0]);
+            if (!sourcePath) return;
 
-      // Track express app instances
-      if (node.init.type === 'CallExpression' && 
-          node.init.callee && 
-          node.init.callee.name === 'express') {
-        appIdentifiers.add(node.id.name);
-      }
+            try {
+                const currentFileDir = path.dirname(filePath);
+                const resolvedPath = require.resolve(sourcePath, { paths: [currentFileDir] });
 
-      // Track express routers
-      if (node.init.type === 'CallExpression' && 
-          node.init.callee.type === 'MemberExpression' &&
-          node.init.callee.object.name === 'express' && 
-          node.init.callee.property.name === 'Router') {
-        routerIdentifiers.set(node.id.name, {
-          variableName: node.id.name,
-          filePath,
-          routes: []
-        });
-      }
-    },
+                if (!analysisData.imports.has(filePath)) {
+                    analysisData.imports.set(filePath, new Map());
+                }
+                const fileImportMap = analysisData.imports.get(filePath);
 
-    CallExpression(path) {
-      const { node } = path;
-      if (node.callee.type !== 'MemberExpression') return;
-
-      const objectName = node.callee.object.name;
-      const methodName = node.callee.property.name;
-      const httpMethods = new Set(['get', 'post', 'put', 'delete', 'patch', 'use', 'all']);
-
-      // Process route definitions
-      if (httpMethods.has(methodName) && 
-          (appIdentifiers.has(objectName) || routerIdentifiers.has(objectName))) {
-        
-        const args = node.arguments;
-        if (args.length === 0) return;
-
-        const routePath = getPathValue(args[0]);
-        if (routePath === null) return;
-
-        const handlers = args.slice(1);
-        const middlewareNames = handlers.map(handler => getHandlerName(handler));
-
-        const routeInfo = {
-          method: methodName.toUpperCase(),
-          path: routePath,
-          middleware: middlewareNames,
-          file: filePath,
-          line: node.loc.start.line
-        };
-
-        if (routerIdentifiers.has(objectName)) {
-          routerIdentifiers.get(objectName).routes.push(routeInfo);
-        } else {
-          routes.push(routeInfo);
+                if (node.id.type === 'ObjectPattern') {
+                    for (const prop of node.id.properties) {
+                        if (prop.key.type === 'Identifier') {
+                            fileImportMap.set(prop.key.name, resolvedPath);
+                        }
+                    }
+                } else if (node.id.type === 'Identifier') {
+                    fileImportMap.set(node.id.name, resolvedPath);
+                }
+            } catch (e) { /* Ignore unresolved modules */ }
         }
-      }
+    };
+}
 
-      // Process router mounting
-      if (methodName === 'use' && appIdentifiers.has(objectName)) {
-        const args = node.arguments;
-        if (args.length < 2) return;
+/**
+ * A Babel visitor that finds Express router definitions, routes, and mounts.
+ * It uses the pre-populated import map to identify mounted routers.
+ */
+function createRouteVisitor(filePath, analysisData) {
+    const importMap = analysisData.imports.get(filePath) || new Map();
+    return {
+        VariableDeclarator(path) {
+            const { node } = path;
+            if (!node.init) return;
 
-        const basePath = getPathValue(args[0]);
-        const routerArg = args[1];
+            const routerName = node.id.name;
+            const isExpressInstance = node.init.type === 'CallExpression' && node.init.callee && node.init.callee.name === 'express';
+            const isRouterInstance = node.init.type === 'CallExpression' && node.init.callee.type === 'MemberExpression' &&
+                                     node.init.callee.object.name === 'express' && node.init.callee.property.name === 'Router';
 
-        if (routerArg.type === 'Identifier' && routerIdentifiers.has(routerArg.name)) {
-          mountedRouters.set(routerArg.name, basePath);
+            if (isExpressInstance || isRouterInstance) {
+                if (!analysisData.routers.has(filePath)) {
+                    analysisData.routers.set(filePath, { name: routerName, routes: [], mounts: [] });
+                }
+            }
+        },
+
+        CallExpression(path) {
+            const { node } = path;
+            if (node.callee.type !== 'MemberExpression') return;
+
+            const objectName = node.callee.object.name;
+            const methodName = node.callee.property.name;
+            
+            const currentRouterData = analysisData.routers.get(filePath);
+            if (!currentRouterData || currentRouterData.name !== objectName) return;
+
+            const httpMethods = new Set(['get', 'post', 'put', 'delete', 'patch', 'all']);
+            if (httpMethods.has(methodName)) {
+                const args = node.arguments;
+                if (args.length === 0) return;
+                const routePath = getPathValue(args[0]);
+                if (routePath === null) return;
+                
+                const handlers = args.slice(1);
+                const middleware = handlers.map(handler => getHandlerName(handler));
+                currentRouterData.routes.push({ method: methodName.toUpperCase(), path: routePath, middleware, file: filePath, line: node.loc.start.line });
+            }
+
+            if (methodName === 'use') {
+                const args = node.arguments;
+                if (args.length === 0) return;
+                
+                let basePath = '/';
+                let routerVariable;
+
+                if (args.length > 1 && args[0].type === 'StringLiteral') {
+                    basePath = getPathValue(args[0]);
+                    routerVariable = args[1];
+                } else {
+                    routerVariable = args[0];
+                }
+
+                if (routerVariable && routerVariable.type === 'Identifier') {
+                    const childRouterPath = importMap.get(routerVariable.name);
+                    if (childRouterPath) {
+                        currentRouterData.mounts.push({ prefix: basePath, childRouterPath: childRouterPath });
+                    }
+                }
+            }
         }
-      }
-    },
+    };
+}
 
-    Program: {
-      exit() {
-        // Apply mounted routers base paths
-        routerIdentifiers.forEach((router, routerName) => {
-          if (mountedRouters.has(routerName)) {
-            const basePath = mountedRouters.get(routerName);
-            router.routes.forEach(route => {
-              routes.push({
-                ...route,
-                path: path.join(basePath, route.path).replace(/\\/g, '/')
-              });
-            });
-          } else {
-            routes.push(...router.routes);
-          }
-        });
-      }
+/**
+ * Takes the raw analysis data and resolves all nested router paths.
+ * @param {object} analysisData - The collected data from the parsers.
+ * @returns {Array} The final array of route objects with full paths.
+ */
+function resolveExpressRoutes(analysisData) {
+    const finalRoutes = [];
+    const calculatedPaths = new Map();
+
+    const childToParentMap = new Map();
+    for (const [parentPath, parentData] of analysisData.routers.entries()) {
+        for (const mount of parentData.mounts) {
+            childToParentMap.set(mount.childRouterPath, { parentPath, prefix: mount.prefix });
+        }
     }
-  };
+
+    function resolvePath(routerFilePath) {
+        if (calculatedPaths.has(routerFilePath)) return calculatedPaths.get(routerFilePath);
+        if (childToParentMap.has(routerFilePath)) {
+            const { parentPath, prefix } = childToParentMap.get(routerFilePath);
+            const parentFullPath = resolvePath(parentPath);
+            const fullPath = path.join(parentFullPath, prefix).replace(/\\/g, '/');
+            calculatedPaths.set(routerFilePath, fullPath);
+            return fullPath;
+        }
+        calculatedPaths.set(routerFilePath, '/');
+        return '/';
+    }
+
+    for (const routerFilePath of analysisData.routers.keys()) {
+        resolvePath(routerFilePath);
+    }
+
+    for (const [routerFilePath, routerData] of analysisData.routers.entries()) {
+        const basePath = calculatedPaths.get(routerFilePath) || '/';
+        routerData.routes.forEach(route => {
+            let finalPath = path.join(basePath, route.path).replace(/\\/g, '/');
+            if (finalPath.length > 1 && finalPath.endsWith('/')) {
+                finalPath = finalPath.slice(0, -1);
+            }
+            finalRoutes.push({ ...route, path: finalPath || '/' });
+        });
+    }
+
+    return finalRoutes;
 }
 
 module.exports = {
-  expressVisitor
+  createImportVisitor,
+  createRouteVisitor,
+  resolveExpressRoutes
 };

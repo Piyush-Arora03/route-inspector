@@ -3,3 +3,4 @@ reports/
 app/
 example.js
 inspector.config.js
+spec.json

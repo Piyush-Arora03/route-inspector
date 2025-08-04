@@ -1,9 +1,10 @@
 const { getPathValue, getHandlerName } = require('./utils');
 
+/**
+ * A Babel visitor for finding Fastify.js routes.
+ */
 function fastifyVisitor(filePath, routes) {
-  // Set to store variables that are the result of require('fastify')
   const fastifyFactories = new Set();
-  // Set to store variables that are actual fastify app instances
   const fastifyInstances = new Set();
 
   return {
@@ -11,7 +12,7 @@ function fastifyVisitor(filePath, routes) {
       const { node } = path;
       if (!node.init) return;
 
-      // Step 1: Find the factory, e.g., const fastify = require('fastify');
+      // Find `const fastify = require('fastify');`
       if (
         node.init.type === 'CallExpression' &&
         node.init.callee.name === 'require' &&
@@ -21,12 +22,12 @@ function fastifyVisitor(filePath, routes) {
         fastifyFactories.add(node.id.name);
       }
 
-      // Step 2: Find the instance created from the factory, e.g., const app = fastify();
+      // Find `const app = fastify();`
       if (node.init.type === 'CallExpression' && fastifyFactories.has(node.init.callee.name)) {
         fastifyInstances.add(node.id.name);
       }
       
-      // Step 2b: Handle combined require and call, e.g., const app = require('fastify')();
+      // Handle combined `const app = require('fastify')();`
       if (
         node.init.type === 'CallExpression' &&
         node.init.callee.type === 'CallExpression' &&
@@ -45,7 +46,6 @@ function fastifyVisitor(filePath, routes) {
       const methodName = node.callee.property.name;
       const httpMethods = new Set(['get', 'post', 'put', 'delete', 'patch', 'head', 'options']);
 
-      // Only proceed if the call is on a known fastify instance
       if (!fastifyInstances.has(objectName)) return;
 
       // Handle shorthand methods: fastify.get('/path', handler)
